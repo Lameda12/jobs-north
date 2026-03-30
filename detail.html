@@ -47,6 +47,12 @@
     .prose p, .prose li { color: #c3c6d0; font-family: 'Inter', sans-serif; line-height: 1.7; margin-bottom: 0.75rem; }
     .prose ul, .prose ol { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
     .prose strong, .prose b { color: #e5e2e1; }
+    @media print {
+      body { background-color: #fff; color: #000; }
+      header, nav, #history-rail, .md\:sticky.top-24 { display: none; }
+      main { padding-top: 0; }
+      .prose p, .prose li, .prose strong, .prose b { color: #000; }
+    }
   </style>
 </head>
 <body class="font-body selection:bg-secondary/30">
@@ -171,6 +177,9 @@
                 : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary'}">
               ${saved ? 'SAVED_' : 'SAVE JOB'}
             </button>
+            <button id="print-btn" class="w-full font-label text-xs uppercase tracking-widest py-2 text-outline-variant hover:text-secondary transition-colors">
+              PRINT_
+            </button>
           </div>
         </div>
       </div>
@@ -246,6 +255,8 @@
         }
         updateSavedBadge();
       });
+
+      document.getElementById('print-btn').addEventListener('click', () => window.print());
 
       updateSavedBadge();
     }
