@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>JOBS_NORTH | Job Detail</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "outline": "#8d919a","on-tertiary-container": "#465468","on-tertiary": "#233144",
+            "primary-fixed": "#e0e3e5","surface-container-highest": "#353534","on-background": "#e5e2e1",
+            "tertiary-fixed": "#d5e3fd","secondary-container": "#234a79","on-error": "#690005",
+            "error": "#ffb4ab","surface-bright": "#393939","inverse-on-surface": "#313030",
+            "surface-dim": "#131313","inverse-primary": "#5c5f61","on-error-container": "#ffdad6",
+            "surface-container-low": "#1c1b1b","outline-variant": "#43474f","on-primary": "#2d3133",
+            "on-surface": "#e5e2e1","surface": "#131313","secondary": "#a5c9fe","surface-tint": "#c4c7c9",
+            "secondary-fixed": "#d4e3ff","error-container": "#93000a","secondary-fixed-dim": "#a5c9fe",
+            "primary-fixed-dim": "#c4c7c9","on-tertiary-fixed-variant": "#3a485c",
+            "surface-container-lowest": "#0e0e0e","on-secondary-container": "#96baf0",
+            "on-secondary": "#00315d","on-secondary-fixed": "#001c39","primary": "#e1e3e5",
+            "tertiary": "#d5e4fd","surface-variant": "#353534","inverse-surface": "#e5e2e1",
+            "background": "#131313","on-primary-container": "#505355","surface-container-high": "#2a2a2a",
+            "tertiary-container": "#b9c8e1","on-primary-fixed-variant": "#444749",
+            "surface-container": "#201f1f","on-primary-fixed": "#191c1e",
+            "on-secondary-fixed-variant": "#204876","primary-container": "#c5c7c9",
+            "on-surface-variant": "#c3c6d0","on-tertiary-fixed": "#0d1c2f","tertiary-fixed-dim": "#b9c7e0"
+          },
+          fontFamily: { "headline": ["Manrope"], "body": ["Inter"], "label": ["Space Grotesk"] },
+          borderRadius: { "DEFAULT": "0.125rem","lg": "0.25rem","xl": "0.5rem","full": "0.75rem" },
+        },
+      },
+    }
+  </script>
+  <style>
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    body { background-color: #131313; color: #e5e2e1; min-height: max(884px, 100dvh); animation: fadeIn 200ms ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #131313; }
+    ::-webkit-scrollbar-thumb { background: #353534; }
+    .prose p, .prose li { color: #c3c6d0; font-family: 'Inter', sans-serif; line-height: 1.7; margin-bottom: 0.75rem; }
+    .prose ul, .prose ol { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+    .prose strong, .prose b { color: #e5e2e1; }
+  </style>
+</head>
+<body class="font-body selection:bg-secondary/30">
+
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 bg-[#131313]/70 backdrop-blur-xl flex justify-between items-center px-6 py-4">
+  <div class="flex items-center gap-4">
+    <a href="index.html" class="text-[#E1E3E5] hover:bg-[#C5C7C9]/10 transition-colors p-1">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </a>
+    <h1 class="text-2xl font-black tracking-tighter text-[#E1E3E5] font-headline uppercase">JOBS_NORTH</h1>
+  </div>
+  <nav class="hidden md:flex items-center gap-8">
+    <a class="text-[#C5C7C9] hover:bg-[#C5C7C9]/10 transition-colors font-headline tracking-tighter font-bold uppercase py-1" href="index.html">Home</a>
+    <a class="text-[#C5C7C9] hover:bg-[#C5C7C9]/10 transition-colors font-headline tracking-tighter font-bold uppercase py-1 relative" href="saved.html">Saved
+      <span id="saved-badge-desktop" class="hidden ml-1 inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-secondary text-on-secondary rounded-full"></span>
+    </a>
+  </nav>
+  <div class="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant/20 overflow-hidden flex items-center justify-center">
+    <span class="material-symbols-outlined text-outline text-sm">person</span>
+  </div>
+</header>
+
+<main class="pt-24 pb-32 max-w-4xl mx-auto px-6">
+  <div id="detail-content">
+    <!-- Skeleton -->
+    <div class="flex flex-col md:flex-row gap-12">
+      <div class="flex-1 flex flex-col gap-4">
+        <div class="h-3 bg-surface-container rounded-sm animate-pulse w-32"></div>
+        <div class="h-14 bg-surface-container rounded-sm animate-pulse w-3/4"></div>
+        <div class="h-3 bg-surface-container rounded-sm animate-pulse w-1/2"></div>
+        <div class="mt-8 space-y-3">
+          <div class="h-3 bg-surface-container rounded-sm animate-pulse w-full"></div>
+          <div class="h-3 bg-surface-container rounded-sm animate-pulse w-5/6"></div>
+          <div class="h-3 bg-surface-container rounded-sm animate-pulse w-4/6"></div>
+        </div>
+      </div>
+      <div class="md:w-64 flex flex-col gap-3">
+        <div class="h-8 bg-surface-container rounded-sm animate-pulse"></div>
+        <div class="h-10 bg-surface-container rounded-sm animate-pulse"></div>
+        <div class="h-10 bg-surface-container rounded-sm animate-pulse"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Bottom Nav (mobile) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-[#131313]/80 backdrop-blur-2xl border-t border-[#E1E3E5]/10 z-50 rounded-t-sm md:hidden">
+  <a class="flex flex-col items-center text-[#C5C7C9] opacity-60 px-4 py-2 scale-95 active:scale-90 duration-300" href="index.html">
+    <span class="material-symbols-outlined mb-1">home_work</span>
+    <span class="font-label text-[10px] uppercase tracking-widest">Home</span>
+  </a>
+  <a class="flex flex-col items-center text-[#C5C7C9] opacity-60 px-4 py-2 scale-95 active:scale-90 duration-300 relative" href="saved.html">
+    <span class="material-symbols-outlined mb-1">bookmark_manager</span>
+    <span class="font-label text-[10px] uppercase tracking-widest">Saved</span>
+    <span id="saved-badge-mobile" class="hidden absolute top-1 right-2 w-1.5 h-1.5 bg-secondary rounded-full"></span>
+  </a>
+</nav>
+
+<script type="module">
+  import { sanitizeHtml, formatSalary, formatBadge, generatePTID, escapeHtml, saveJob, removeSaved, isSaved, getSavedCount } from './jobs-data.js';
+
+  function updateSavedBadge() {
+    const count = getSavedCount();
+    const desktop = document.getElementById('saved-badge-desktop');
+    const mobile = document.getElementById('saved-badge-mobile');
+    if (desktop) { desktop.textContent = count; desktop.classList.toggle('hidden', count === 0); }
+    if (mobile) { mobile.classList.toggle('hidden', count === 0); }
+  }
+
+  function renderDetail(job) {
+    const salary = formatSalary(job);
+    const badge = formatBadge(job, 'all');
+    const ptid = generatePTID(job);
+    const description = sanitizeHtml(job.description ?? '<p>No description available.</p>');
+    const saved = isSaved(job.id);
+    const applyUrl = escapeHtml(job.redirect_url ?? '#');
+
+    return `
+      <div class="flex flex-col md:flex-row gap-12">
+        <div class="flex-1">
+          <p class="font-label text-[10px] text-outline-variant uppercase tracking-widest mb-6">${escapeHtml(ptid)}</p>
+          <p class="font-label text-secondary text-xs uppercase tracking-[0.2em] mb-3">${escapeHtml(job.category?.label ?? 'General')}</p>
+          <h2 class="text-4xl md:text-6xl font-headline font-extrabold tracking-tighter leading-tight text-primary mb-4">
+            ${escapeHtml(job.title)}
+          </h2>
+          <div class="flex flex-wrap items-center gap-4 text-outline font-label text-sm uppercase tracking-widest mb-10">
+            <span>${escapeHtml(job.company?.display_name ?? 'N/A')}</span>
+            <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+            <span>${escapeHtml(job.location?.display_name ?? 'Canada')}</span>
+          </div>
+          <div class="prose max-w-none">${description}</div>
+        </div>
+        <div class="md:w-64 md:sticky md:top-24 h-fit flex flex-col gap-4">
+          <div class="bg-surface-container p-6 flex flex-col gap-4 border border-outline-variant/10">
+            <div>
+              <p class="font-label text-[10px] text-outline-variant uppercase tracking-widest mb-1">Salary</p>
+              <p class="font-label text-lg font-bold text-primary">${escapeHtml(salary)}</p>
+            </div>
+            <div>
+              <p class="font-label text-[10px] text-outline-variant uppercase tracking-widest mb-1">Type</p>
+              <p class="font-label text-sm text-on-surface-variant uppercase">${escapeHtml(badge)}</p>
+            </div>
+            <div>
+              <p class="font-label text-[10px] text-outline-variant uppercase tracking-widest mb-1">Company</p>
+              <p class="font-label text-sm text-on-surface-variant">${escapeHtml(job.company?.display_name ?? 'N/A')}</p>
+            </div>
+            <a href="${applyUrl}" target="_blank" rel="noopener noreferrer"
+              class="w-full text-center font-label text-xs uppercase tracking-widest py-3 bg-secondary text-on-secondary hover:bg-secondary/80 transition-colors block">
+              APPLY NOW
+            </a>
+            <button id="save-btn"
+              class="w-full font-label text-xs uppercase tracking-widest py-3 border transition-colors ${saved
+                ? 'border-secondary text-secondary hover:bg-secondary/10'
+                : 'border-outline-variant text-outline hover:border-secondary hover:text-secondary'}">
+              ${saved ? 'SAVED_' : 'SAVE JOB'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const raw = sessionStorage.getItem('jobs_north_current');
+  if (!raw) {
+    window.location.href = 'index.html';
+  } else {
+    const job = JSON.parse(raw);
+    document.title = `JOBS_NORTH | ${job.title ?? 'Job Detail'}`;
+    document.getElementById('detail-content').innerHTML = renderDetail(job);
+
+    document.getElementById('save-btn').addEventListener('click', function() {
+      if (isSaved(job.id)) {
+        removeSaved(job.id);
+        this.textContent = 'SAVE JOB';
+        this.classList.remove('border-secondary', 'text-secondary', 'hover:bg-secondary/10');
+        this.classList.add('border-outline-variant', 'text-outline', 'hover:border-secondary', 'hover:text-secondary');
+      } else {
+        saveJob(job);
+        this.textContent = 'SAVED_';
+        this.classList.remove('border-outline-variant', 'text-outline', 'hover:border-secondary', 'hover:text-secondary');
+        this.classList.add('border-secondary', 'text-secondary', 'hover:bg-secondary/10');
+      }
+      updateSavedBadge();
+    });
+
+    updateSavedBadge();
+  }
+</script>
+</body>
+</html>
