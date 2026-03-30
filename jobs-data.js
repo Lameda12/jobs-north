@@ -68,7 +68,13 @@ export async function fetchJobById(id) {
   return all.find(j => j.id === id);
 }
 
-export async function fetchJobs({ query = '', filter = 'all', page = 1 } = {}) {
+export async function getProvinces() {
+  const all = await loadAll();
+  const provinces = new Set(all.map(j => extractProvince(j.location?.area)));
+  return Array.from(provinces).sort();
+}
+
+export async function fetchJobs({ query = '', filter = 'all', province = 'all', page = 1 } = {}) {
   const all = await loadAll();
 
   let filtered = all;
@@ -76,6 +82,11 @@ export async function fetchJobs({ query = '', filter = 'all', page = 1 } = {}) {
   // Filter by work type
   if (filter !== 'all') {
     filtered = filtered.filter(j => (j.work_type ?? 'in-person') === filter);
+  }
+
+  // Filter by province
+  if (province !== 'all') {
+    filtered = filtered.filter(j => extractProvince(j.location?.area) === province);
   }
 
   // Filter by search query (title, company, location, category)
