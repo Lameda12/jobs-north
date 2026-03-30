@@ -91,6 +91,13 @@
       </div>
     </div>
   </div>
+
+  <section id="history-rail" class="mt-24 pt-12 border-t border-outline-variant/10">
+    <h3 class="font-headline text-2xl font-bold tracking-tighter mb-6">RECENTLY VIEWED_</h3>
+    <div id="history-cards" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- History cards will be injected here -->
+    </div>
+  </section>
 </main>
 
 <!-- Bottom Nav (mobile) -->
@@ -107,7 +114,7 @@
 </nav>
 
 <script type="module">
-  import { sanitizeHtml, formatSalary, formatBadge, generatePTID, escapeHtml, saveJob, removeSaved, isSaved, getSavedCount, fetchJobById } from './jobs-data.js';
+  import { sanitizeHtml, formatSalary, formatBadge, generatePTID, escapeHtml, saveJob, removeSaved, isSaved, getSavedCount, fetchJobById, getHistory, addToHistory } from './jobs-data.js';
 
   function updateSavedBadge() {
     const count = getSavedCount();
@@ -170,6 +177,35 @@
     `;
   }
 
+  function renderHistoryCard(job) {
+    return `
+      <a href="detail.html?id=${escapeHtml(job.id)}" class="block bg-surface-container p-6 border border-outline-variant/10 hover:border-secondary/50 transition-colors">
+        <p class="font-label text-secondary text-[10px] uppercase tracking-[0.2em] mb-2">${escapeHtml(job.category?.label ?? 'General')}</p>
+        <h4 class="text-xl font-headline font-bold text-primary mb-2">${escapeHtml(job.title)}</h4>
+        <div class="flex items-center gap-3 text-outline font-label text-xs uppercase tracking-widest">
+          <span>${escapeHtml(job.company?.display_name ?? 'N/A')}</span>
+          <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+          <span>${escapeHtml(job.location?.display_name ?? 'Canada')}</span>
+        </div>
+      </a>
+    `;
+  }
+
+  function renderHistory(currentJobId) {
+    const history = getHistory();
+    const container = document.getElementById('history-cards');
+    const rail = document.getElementById('history-rail');
+    
+    const filtered = history.filter(j => j.id !== currentJobId);
+
+    if (filtered.length === 0) {
+      rail.style.display = 'none';
+      return;
+    }
+    
+    container.innerHTML = filtered.map(renderHistoryCard).join('');
+  }
+
   (async function() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
@@ -192,6 +228,9 @@
     } else {
       document.title = `JOBS_NORTH | ${job.title ?? 'Job Detail'}`;
       document.getElementById('detail-content').innerHTML = renderDetail(job);
+      
+      addToHistory(job);
+      renderHistory(job.id);
 
       document.getElementById('save-btn').addEventListener('click', function() {
         if (isSaved(job.id)) {

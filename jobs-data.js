@@ -186,10 +186,27 @@ export function formatTimeAgo(timestamp) {
   return `${days} DAYS AGO`;
 }
 
-const STORAGE_KEY = 'jobs_north_saved';
+const STORAGE_KEY_SAVED = 'jobs_north_saved';
+const STORAGE_KEY_HISTORY = 'jobs_north_history';
+
+export function getHistory() {
+  try { return JSON.parse(localStorage?.getItem(STORAGE_KEY_HISTORY) ?? '[]'); }
+  catch { return []; }
+}
+
+export function addToHistory(job) {
+  if (!job?.id) return;
+  let history = getHistory();
+  history = history.filter(j => j.id !== job.id);
+  history.unshift(job);
+  if (history.length > 5) {
+    history = history.slice(0, 5);
+  }
+  localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
+}
 
 export function getSaved() {
-  try { return JSON.parse(localStorage?.getItem(STORAGE_KEY) ?? '[]'); }
+  try { return JSON.parse(localStorage?.getItem(STORAGE_KEY_SAVED) ?? '[]'); }
   catch { return []; }
 }
 
@@ -197,13 +214,13 @@ export function saveJob(job) {
   const saved = getSaved();
   if (!saved.find(j => j.id === job.id)) {
     saved.push({ ...job, savedAt: Date.now() });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(saved));
   }
 }
 
 export function removeSaved(id) {
   const saved = getSaved().filter(j => j.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+  localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(saved));
 }
 
 export function isSaved(id) {
