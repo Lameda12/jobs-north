@@ -1,8 +1,8 @@
 # JOBS_NORTH
 
-Curated part-time jobs across Canada. Editorial-first design. No framework, no build step.
+Curated part-time jobs across Canada. Editorial-first design. No framework, no build step, no API keys.
 
-Live data from [Adzuna Canada](https://developer.adzuna.com). Three pages. One JS module.
+30 realistic Canadian listings. Instant search, filter, and bookmarks. Works offline.
 
 ---
 
@@ -10,8 +10,8 @@ Live data from [Adzuna Canada](https://developer.adzuna.com). Three pages. One J
 
 - Vanilla JS (ES modules)
 - Tailwind CSS via CDN
-- Adzuna Canada REST API
-- localStorage for bookmarks
+- Local `jobs.json` data (30 Canadian part-time listings)
+- `localStorage` for bookmarks — persists across sessions
 
 ## Pages
 
@@ -23,19 +23,36 @@ Live data from [Adzuna Canada](https://developer.adzuna.com). Three pages. One J
 
 ## Setup
 
-1. Get a free API key at [developer.adzuna.com](https://developer.adzuna.com)
-2. Open `jobs-data.js` and replace `YOUR_APP_ID` and `YOUR_APP_KEY`
-3. Open `index.html` in a browser — no server required
+No installation required. Open `index.html` in a browser.
+
+```bash
+open index.html
+```
+
+Or serve locally:
+
+```bash
+npx serve .
+```
 
 ## Structure
 
 ```
-index.html          listings page
-detail.html         job detail view
-saved.html          saved jobs
-jobs-data.js        shared API + rendering + localStorage module
-tailwind-config.js  shared design tokens
+index.html          listings page — search, filters, pagination
+detail.html         job detail view — description, apply, save
+saved.html          saved jobs — timestamps, remove, empty state
+jobs-data.js        shared module — data loading, rendering, localStorage
+jobs.json           30 Canadian part-time job listings
 ```
+
+## Features
+
+- **Live search** — debounced 300ms, matches title, company, location, category
+- **Filters** — All / In Person / Hybrid / Remote
+- **Pagination** — 10 per page, load more
+- **Bookmarks** — save/unsave from detail view, persists in localStorage
+- **Skeleton loading** — animated placeholders while data loads
+- **Page transitions** — CSS fade-in on every page
 
 ---
 
