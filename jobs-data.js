@@ -55,12 +55,17 @@ export function escapeHtml(str) {
 // Cache loaded jobs in memory
 let _cache = null;
 
-async function loadAll() {
+export async function loadAll() {
   if (_cache) return _cache;
   const res = await fetch('./jobs.json');
   if (!res.ok) throw new Error('Failed to load jobs.json');
   _cache = await res.json();
   return _cache;
+}
+
+export async function fetchJobById(id) {
+  const all = await loadAll();
+  return all.find(j => j.id === id);
 }
 
 export async function fetchJobs({ query = '', filter = 'all', page = 1 } = {}) {

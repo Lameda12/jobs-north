@@ -107,7 +107,7 @@
 </nav>
 
 <script type="module">
-  import { sanitizeHtml, formatSalary, formatBadge, generatePTID, escapeHtml, saveJob, removeSaved, isSaved, getSavedCount } from './jobs-data.js';
+  import { sanitizeHtml, formatSalary, formatBadge, generatePTID, escapeHtml, saveJob, removeSaved, isSaved, getSavedCount, fetchJobById } from './jobs-data.js';
 
   function updateSavedBadge() {
     const count = getSavedCount();
@@ -170,31 +170,47 @@
     `;
   }
 
-  const raw = sessionStorage.getItem('jobs_north_current');
-  if (!raw) {
-    window.location.href = 'index.html';
-  } else {
-    const job = JSON.parse(raw);
-    document.title = `JOBS_NORTH | ${job.title ?? 'Job Detail'}`;
-    document.getElementById('detail-content').innerHTML = renderDetail(job);
+  (async function() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    let job = null;
 
-    document.getElementById('save-btn').addEventListener('click', function() {
-      if (isSaved(job.id)) {
-        removeSaved(job.id);
-        this.textContent = 'SAVE JOB';
-        this.classList.remove('border-secondary', 'text-secondary', 'hover:bg-secondary/10');
-        this.classList.add('border-outline-variant', 'text-outline', 'hover:border-secondary', 'hover:text-secondary');
-      } else {
-        saveJob(job);
-        this.textContent = 'SAVED_';
-        this.classList.remove('border-outline-variant', 'text-outline', 'hover:border-secondary', 'hover:text-secondary');
-        this.classList.add('border-secondary', 'text-secondary', 'hover:bg-secondary/10');
+    const raw = sessionStorage.getItem('jobs_north_current');
+    if (raw) {
+      const sessionJob = JSON.parse(raw);
+      if (sessionJob.id === id) {
+        job = sessionJob;
       }
-      updateSavedBadge();
-    });
+    }
 
-    updateSavedBadge();
-  }
+    if (!job && id) {
+      job = await fetchJobById(id);
+    }
+
+    if (!job) {
+      window.location.href = 'index.html';
+    } else {
+      document.title = `JOBS_NORTH | ${job.title ?? 'Job Detail'}`;
+      document.getElementById('detail-content').innerHTML = renderDetail(job);
+
+      document.getElementById('save-btn').addEventListener('click', function() {
+        if (isSaved(job.id)) {
+          removeSaved(job.id);
+          this.textContent = 'SAVE JOB';
+          this.classList.remove('border-secondary', 'text-secondary', 'hover:bg-secondary/10');
+          this.classList.add('border-outline-variant', 'text-outline', 'hover:border-secondary', 'hover:text-secondary');
+        } else {
+          saveJob(job);
+          this.textContent = 'SAVED_';
+          this.classList.remove('border-outline-variant', 'text-outline', 'hover:border-secondary', 'hover:text-secondary');
+          this.classList.add('border-secondary', 'text-secondary', 'hover:bg-secondary/10');
+        }
+        updateSavedBadge();
+      });
+
+      updateSavedBadge();
+    }
+  })();
 </script>
 </body>
 </html>
