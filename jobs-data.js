@@ -1,12 +1,9 @@
 // ─────────────────────────────────────────────
-// SETUP: Get your free Adzuna API credentials at
-// https://developer.adzuna.com
-// Replace the placeholders below with your values.
+// JOBS_NORTH — Local data module
+// Job data lives in jobs.json. No API key needed.
 // ─────────────────────────────────────────────
+
 export const CONFIG = {
-  APP_ID: 'YOUR_APP_ID',   // ← replace
-  APP_KEY: 'YOUR_APP_KEY', // ← replace
-  BASE_URL: 'https://api.adzuna.com/v1/api/jobs/ca/search',
   RESULTS_PER_PAGE: 10,
 };
 
@@ -27,7 +24,7 @@ export function extractProvince(area = []) {
 
 export function generatePTID(job) {
   const province = extractProvince(job.location?.area);
-  const id = String(job.id).replace(/\D/g, '').slice(-5).padStart(5, '0').toUpperCase();
+  const id = String(job.id).replace(/\D/g, '').slice(-5).padStart(5, '0');
   return `PT_ID: ${id}-${province}`;
 }
 
@@ -42,7 +39,8 @@ export function formatSalary(job) {
 
 export function formatBadge(job, filter) {
   const time = job.contract_time === 'part_time' ? 'Part-Time' : 'Casual';
-  const mode = filter === 'remote' ? 'Remote' : filter === 'hybrid' ? 'Hybrid' : 'In-Person';
+  const workType = job.work_type ?? 'in-person';
+  const mode = workType === 'remote' ? 'Remote' : workType === 'hybrid' ? 'Hybrid' : 'In-Person';
   return `${time} / ${mode}`;
 }
 
@@ -54,21 +52,43 @@ export function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-export async function fetchJobs({ query = '', filter = 'all', page = 1 } = {}) {
-  const params = new URLSearchParams({
-    app_id: CONFIG.APP_ID,
-    app_key: CONFIG.APP_KEY,
-    results_per_page: CONFIG.RESULTS_PER_PAGE,
-    part_time: 1,
-  });
-  if (query) params.set('what', query);
-  if (filter === 'remote') params.set('what_and', 'remote');
-  if (filter === 'hybrid') params.set('what_and', 'hybrid');
+// Cache loaded jobs in memory
+let _cache = null;
 
-  const res = await fetch(`${CONFIG.BASE_URL}/${page}?${params}`);
-  if (!res.ok) throw new Error(`Adzuna API error: ${res.status}`);
-  const data = await res.json();
-  return { jobs: data.results ?? [], total: data.count ?? 0 };
+async function loadAll() {
+  if (_cache) return _cache;
+  const res = await fetch('./jobs.json');
+  if (!res.ok) throw new Error('Failed to load jobs.json');
+  _cache = await res.json();
+  return _cache;
+}
+
+export async function fetchJobs({ query = '', filter = 'all', page = 1 } = {}) {
+  const all = await loadAll();
+
+  let filtered = all;
+
+  // Filter by work type
+  if (filter !== 'all') {
+    filtered = filtered.filter(j => (j.work_type ?? 'in-person') === filter);
+  }
+
+  // Filter by search query (title, company, location, category)
+  if (query) {
+    const q = query.toLowerCase();
+    filtered = filtered.filter(j =>
+      j.title?.toLowerCase().includes(q) ||
+      j.company?.display_name?.toLowerCase().includes(q) ||
+      j.location?.display_name?.toLowerCase().includes(q) ||
+      j.category?.label?.toLowerCase().includes(q)
+    );
+  }
+
+  const total = filtered.length;
+  const start = (page - 1) * CONFIG.RESULTS_PER_PAGE;
+  const jobs = filtered.slice(start, start + CONFIG.RESULTS_PER_PAGE);
+
+  return { jobs, total };
 }
 
 export function renderCard(job, filter = 'all') {
