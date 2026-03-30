@@ -72,6 +72,7 @@ export async function fetchJobs({ query = '', filter = 'all', page = 1 } = {}) {
 }
 
 export function renderCard(job, filter = 'all') {
+  if (!job) return '';
   const ptid = generatePTID(job);
   const salary = formatSalary(job);
   const badge = formatBadge(job, filter);
@@ -79,7 +80,7 @@ export function renderCard(job, filter = 'all') {
 
   return `
     <div class="group relative flex flex-col md:flex-row md:items-end justify-between transition-all cursor-pointer job-card" data-id="${escapeHtml(job.id)}">
-      <div class="absolute -top-6 right-0 font-label text-[10px] text-outline-variant uppercase tracking-widest">${ptid}</div>
+      <div class="absolute -top-6 right-0 font-label text-[10px] text-outline-variant uppercase tracking-widest">${escapeHtml(ptid)}</div>
       <div class="max-w-xl">
         <p class="font-label text-secondary text-xs uppercase tracking-[0.2em] mb-2">${category}</p>
         <h3 class="text-3xl md:text-5xl font-headline font-bold text-primary group-hover:text-secondary group-hover:pl-3 group-hover:border-l-2 group-hover:border-secondary transition-all leading-tight mb-2">
@@ -92,8 +93,8 @@ export function renderCard(job, filter = 'all') {
         </div>
       </div>
       <div class="mt-6 md:mt-0 flex flex-col items-start md:items-end gap-3">
-        <span class="font-label text-lg font-bold text-primary">${salary}</span>
-        <span class="border border-outline-variant/50 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-outline">${badge}</span>
+        <span class="font-label text-lg font-bold text-primary">${escapeHtml(salary)}</span>
+        <span class="border border-outline-variant/50 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-outline">${escapeHtml(badge)}</span>
       </div>
       <div class="absolute -bottom-6 left-0 w-full h-px bg-outline-variant/10"></div>
     </div>
@@ -141,7 +142,7 @@ export function formatTimeAgo(timestamp) {
 const STORAGE_KEY = 'jobs_north_saved';
 
 export function getSaved() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  try { return JSON.parse(localStorage?.getItem(STORAGE_KEY) ?? '[]'); }
   catch { return []; }
 }
 
