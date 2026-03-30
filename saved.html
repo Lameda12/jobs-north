@@ -91,7 +91,19 @@
 </nav>
 
 <script type="module">
-  import { getSaved, removeSaved, formatSalary, formatBadge, generatePTID, escapeHtml, formatTimeAgo } from './jobs-data.js';
+  import { getSaved, removeSaved, formatSalary, formatBadge, generatePTID, escapeHtml, formatTimeAgo, updateNote } from './jobs-data.js';
+
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
 
   function renderSavedCard(job) {
     const ptid = generatePTID(job);
@@ -100,28 +112,38 @@
     const timeAgo = formatTimeAgo(job.savedAt);
 
     return `
-      <div class="group relative flex flex-col md:flex-row md:items-end justify-between transition-all saved-card" data-id="${escapeHtml(job.id)}">
-        <div class="absolute -top-6 right-0 font-label text-[10px] text-outline-variant uppercase tracking-widest">${escapeHtml(ptid)}</div>
-        <div class="max-w-xl cursor-pointer job-link">
-          <p class="font-label text-secondary text-xs uppercase tracking-[0.2em] mb-2">${escapeHtml(job.category?.label ?? 'General')}</p>
-          <h3 class="text-2xl md:text-3xl font-headline font-bold text-primary group-hover:text-secondary transition-colors leading-tight mb-2">
-            ${escapeHtml(job.title ?? 'Untitled')}
-          </h3>
-          <div class="flex flex-wrap items-center gap-3 text-outline font-label text-sm uppercase tracking-widest">
-            <span>${escapeHtml(job.company?.display_name ?? 'N/A')}</span>
-            <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
-            <span>${escapeHtml(job.location?.display_name ?? 'Canada')}</span>
-            <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
-            <span class="text-outline-variant text-[10px]">SAVED ${timeAgo}</span>
+      <div class="group relative flex flex-col transition-all saved-card" data-id="${escapeHtml(job.id)}">
+        <div class="flex flex-col md:flex-row md:items-end justify-between">
+          <div class="absolute -top-6 right-0 font-label text-[10px] text-outline-variant uppercase tracking-widest">${escapeHtml(ptid)}</div>
+          <div class="max-w-xl cursor-pointer job-link">
+            <p class="font-label text-secondary text-xs uppercase tracking-[0.2em] mb-2">${escapeHtml(job.category?.label ?? 'General')}</p>
+            <h3 class="text-2xl md:text-3xl font-headline font-bold text-primary group-hover:text-secondary transition-colors leading-tight mb-2">
+              ${escapeHtml(job.title ?? 'Untitled')}
+            </h3>
+            <div class="flex flex-wrap items-center gap-3 text-outline font-label text-sm uppercase tracking-widest">
+              <span>${escapeHtml(job.company?.display_name ?? 'N/A')}</span>
+              <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+              <span>${escapeHtml(job.location?.display_name ?? 'Canada')}</span>
+              <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+              <span class="text-outline-variant text-[10px]">SAVED ${timeAgo}</span>
+            </div>
+          </div>
+          <div class="mt-6 md:mt-0 flex flex-col items-start md:items-end gap-3">
+            <span class="font-label text-base font-bold text-primary">${escapeHtml(salary)}</span>
+            <span class="border border-outline-variant/50 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-outline">${escapeHtml(badge)}</span>
+            <button class="remove-btn font-label text-[10px] uppercase tracking-widest text-outline-variant hover:text-error transition-colors border-b border-transparent hover:border-error pb-0.5">
+              REMOVE_
+            </button>
           </div>
         </div>
-        <div class="mt-6 md:mt-0 flex flex-col items-start md:items-end gap-3">
-          <span class="font-label text-base font-bold text-primary">${escapeHtml(salary)}</span>
-          <span class="border border-outline-variant/50 px-3 py-1 font-label text-[10px] uppercase tracking-widest text-outline">${escapeHtml(badge)}</span>
-          <button class="remove-btn font-label text-[10px] uppercase tracking-widest text-outline-variant hover:text-error transition-colors border-b border-transparent hover:border-error pb-0.5">
-            REMOVE_
-          </button>
-        </div>
+        <details class="mt-4">
+          <summary class="font-label text-xs uppercase tracking-widest text-outline-variant cursor-pointer hover:text-secondary">
+            ADD NOTE_
+          </summary>
+          <div class="mt-2">
+            <textarea class="note-textarea w-full bg-surface-container-low border border-outline-variant/20 focus:ring-secondary focus:border-secondary font-body text-sm p-3" rows="3" placeholder="Your private scratchpad...">${escapeHtml(job.note ?? '')}</textarea>
+          </div>
+        </details>
         <div class="absolute -bottom-6 left-0 w-full h-px bg-outline-variant/10"></div>
       </div>
     `;
@@ -147,19 +169,25 @@
 
     container.innerHTML = saved.map(renderSavedCard).join('');
 
-    container.querySelectorAll('.job-link').forEach((el, i) => {
-      el.addEventListener('click', () => {
-        sessionStorage.setItem('jobs_north_current', JSON.stringify(saved[i]));
-        window.location.href = `detail.html?id=${encodeURIComponent(saved[i].id)}`;
-      });
-    });
+    const debouncedUpdate = debounce((id, value) => updateNote(id, value), 500);
 
-    container.querySelectorAll('.remove-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
+    container.querySelectorAll('.saved-card').forEach((card, i) => {
+      const job = saved[i];
+      
+      card.querySelector('.job-link').addEventListener('click', () => {
+        sessionStorage.setItem('jobs_north_current', JSON.stringify(job));
+        window.location.href = `detail.html?id=${encodeURIComponent(job.id)}`;
+      });
+
+      card.querySelector('.remove-btn').addEventListener('click', e => {
         e.stopPropagation();
-        const card = btn.closest('.saved-card');
-        removeSaved(card.dataset.id);
+        removeSaved(job.id);
         renderAll();
+      });
+
+      const textarea = card.querySelector('.note-textarea');
+      textarea.addEventListener('input', () => {
+        debouncedUpdate(job.id, textarea.value);
       });
     });
   }

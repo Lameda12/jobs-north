@@ -213,7 +213,16 @@ export function getSaved() {
 export function saveJob(job) {
   const saved = getSaved();
   if (!saved.find(j => j.id === job.id)) {
-    saved.push({ ...job, savedAt: Date.now() });
+    saved.push({ ...job, savedAt: Date.now(), note: '' });
+    localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(saved));
+  }
+}
+
+export function updateNote(jobId, note) {
+  const saved = getSaved();
+  const job = saved.find(j => j.id === jobId);
+  if (job) {
+    job.note = note;
     localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(saved));
   }
 }
