@@ -101,6 +101,9 @@
       <div id="province-filters" class="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full -mx-6 px-6">
         <!-- Province chips will be injected here -->
       </div>
+      <div id="category-filters" class="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full -mx-6 px-6">
+        <!-- Category chips will be injected here -->
+      </div>
     </div>
   </div>
 
@@ -129,12 +132,13 @@
 </nav>
 
 <script type="module">
-  import { fetchJobs, renderCard, renderSkeleton, getSavedCount, getProvinces } from './jobs-data.js';
+  import { fetchJobs, renderCard, renderSkeleton, getSavedCount, getProvinces, getCategories } from './jobs-data.js';
 
   const container = document.getElementById('jobs-container');
   const searchInput = document.getElementById('search-input');
   const filterBtns = document.querySelectorAll('.filter-btn');
   const provinceFiltersContainer = document.getElementById('province-filters');
+  const categoryFiltersContainer = document.getElementById('category-filters');
   const loadMoreBtn = document.getElementById('load-more-btn');
   const errorBanner = document.getElementById('error-banner');
 
@@ -142,6 +146,7 @@
   let currentQuery = '';
   let currentFilter = 'all';
   let currentProvince = 'all';
+  let currentCategory = 'all';
   let totalJobs = 0;
   let shownJobs = 0;
 
@@ -186,6 +191,38 @@
     });
   }
 
+  async function renderCategoryFilters() {
+    const categories = await getCategories();
+    const allBtn = document.createElement('button');
+    allBtn.dataset.category = 'all';
+    allBtn.className = 'category-btn whitespace-nowrap font-label text-[11px] uppercase tracking-widest px-4 py-2 bg-secondary-container text-on-secondary-container rounded-sm border border-secondary/20 transition-all';
+    allBtn.textContent = 'All Categories';
+    categoryFiltersContainer.appendChild(allBtn);
+
+    categories.forEach(c => {
+      const btn = document.createElement('button');
+      btn.dataset.category = c;
+      btn.className = 'category-btn whitespace-nowrap font-label text-[11px] uppercase tracking-widest px-4 py-2 bg-surface-container-low text-outline border border-outline-variant/30 rounded-sm hover:border-secondary/50 transition-all';
+      btn.textContent = c;
+      categoryFiltersContainer.appendChild(btn);
+    });
+
+    categoryFiltersContainer.addEventListener('click', e => {
+      if (!e.target.matches('.category-btn')) return;
+      currentCategory = e.target.dataset.category;
+      document.querySelectorAll('.category-btn').forEach(b => {
+        const isActive = b.dataset.category === currentCategory;
+        b.classList.toggle('bg-secondary-container', isActive);
+        b.classList.toggle('text-on-secondary-container', isActive);
+        b.classList.toggle('border-secondary/20', isActive);
+        b.classList.toggle('bg-surface-container-low', !isActive);
+        b.classList.toggle('text-outline', !isActive);
+        b.classList.toggle('border-outline-variant/30', !isActive);
+      });
+      loadJobs(true);
+    });
+  }
+
   async function loadJobs(reset = true) {
     if (reset) {
       currentPage = 1;
@@ -196,7 +233,7 @@
     errorBanner.classList.add('hidden');
 
     try {
-      const { jobs, total } = await fetchJobs({ query: currentQuery, filter: currentFilter, province: currentProvince, page: currentPage });
+      const { jobs, total } = await fetchJobs({ query: currentQuery, filter: currentFilter, province: currentProvince, category: currentCategory, page: currentPage });
       totalJobs = total;
 
       if (reset) container.innerHTML = '';
@@ -259,6 +296,7 @@
   async function init() {
     updateSavedBadge();
     await renderProvinceFilters();
+    await renderCategoryFilters();
     await loadJobs(true);
   }
 

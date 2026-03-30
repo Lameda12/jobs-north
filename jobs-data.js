@@ -74,7 +74,13 @@ export async function getProvinces() {
   return Array.from(provinces).sort();
 }
 
-export async function fetchJobs({ query = '', filter = 'all', province = 'all', page = 1 } = {}) {
+export async function getCategories() {
+  const all = await loadAll();
+  const categories = new Set(all.map(j => j.category?.label).filter(Boolean));
+  return Array.from(categories).sort();
+}
+
+export async function fetchJobs({ query = '', filter = 'all', province = 'all', category = 'all', page = 1 } = {}) {
   const all = await loadAll();
 
   let filtered = all;
@@ -87,6 +93,11 @@ export async function fetchJobs({ query = '', filter = 'all', province = 'all', 
   // Filter by province
   if (province !== 'all') {
     filtered = filtered.filter(j => extractProvince(j.location?.area) === province);
+  }
+
+  // Filter by category
+  if (category !== 'all') {
+    filtered = filtered.filter(j => j.category?.label === category);
   }
 
   // Filter by search query (title, company, location, category)
