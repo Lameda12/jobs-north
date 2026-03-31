@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css" rel="stylesheet">
   <script>
     tailwind.config = {
       darkMode: "class",
@@ -44,6 +45,13 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #131313; }
     ::-webkit-scrollbar-thumb { background: #353534; }
+    .noUi-target { background: #2a2a2a; border: none; box-shadow: none; }
+    .noUi-connect { background: #a5c9fe; }
+    .noUi-handle { border: 2px solid #131313; border-radius: 50%; background: #a5c9fe; box-shadow: none; cursor: grab; }
+    .noUi-handle:focus { outline: none; }
+    .noUi-handle.noUi-active { cursor: grabbing; }
+    .noUi-handle:after, .noUi-handle:before { display: none; }
+    .noUi-tooltip { background: #353534; color: #e5e2e1; border: none; font-family: 'Space Grotesk'; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; padding: 4px 6px; }
   </style>
 </head>
 <body class="font-body selection:bg-secondary/30">
@@ -104,6 +112,13 @@
       <div id="category-filters" class="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full -mx-6 px-6">
         <!-- Category chips will be injected here -->
       </div>
+      <div id="salary-filter" class="pt-4">
+        <div class="flex justify-between items-center mb-2">
+          <label class="font-label text-[11px] uppercase tracking-widest text-outline">Salary Range</label>
+          <span id="salary-range-label" class="font-label text-xs text-on-surface-variant"></span>
+        </div>
+        <div id="salary-slider" class="h-2"></div>
+      </div>
     </div>
   </div>
 
@@ -131,14 +146,17 @@
   </a>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js"></script>
 <script type="module">
-  import { fetchJobs, renderCard, renderSkeleton, getSavedCount, getProvinces, getCategories } from './jobs-data.js';
+  import { fetchJobs, renderCard, renderSkeleton, getSavedCount, getProvinces, getCategories, getSalaryRange } from './jobs-data.js';
 
   const container = document.getElementById('jobs-container');
   const searchInput = document.getElementById('search-input');
   const filterBtns = document.querySelectorAll('.filter-btn');
   const provinceFiltersContainer = document.getElementById('province-filters');
   const categoryFiltersContainer = document.getElementById('category-filters');
+  const salarySliderEl = document.getElementById('salary-slider');
+  const salaryLabel = document.getElementById('salary-range-label');
   const loadMoreBtn = document.getElementById('load-more-btn');
   const errorBanner = document.getElementById('error-banner');
 
@@ -147,8 +165,22 @@
   let currentFilter = 'all';
   let currentProvince = 'all';
   let currentCategory = 'all';
+  let currentSalaryMin = 0;
+  let currentSalaryMax = 0;
   let totalJobs = 0;
   let shownJobs = 0;
+
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
 
   function updateSavedBadge() {
     const count = getSavedCount();
@@ -223,6 +255,34 @@
     });
   }
 
+  async function renderSalarySlider() {
+    const range = await getSalaryRange();
+    const format = {
+      to: value => Math.round(value).toLocaleString(),
+      from: value => Number(value.replace(/,/g, ''))
+    };
+
+    noUiSlider.create(salarySliderEl, {
+      start: [range.min, range.max],
+      connect: true,
+      range: { min: range.min, max: range.max },
+      step: 1000,
+      tooltips: { to: val => `$${format.to(val)}` },
+    });
+
+    const debouncedLoad = debounce(() => loadJobs(true), 500);
+
+    salarySliderEl.noUiSlider.on('update', (values, handle) => {
+      const [min, max] = values.map(format.from);
+      currentSalaryMin = min;
+      currentSalaryMax = max;
+      salaryLabel.textContent = `$${format.to(min)} – $${format.to(max)}`;
+      if (handle !== undefined) { // Avoid initial load trigger
+        debouncedLoad();
+      }
+    });
+  }
+
   async function loadJobs(reset = true) {
     if (reset) {
       currentPage = 1;
@@ -233,7 +293,16 @@
     errorBanner.classList.add('hidden');
 
     try {
-      const { jobs, total } = await fetchJobs({ query: currentQuery, filter: currentFilter, province: currentProvince, category: currentCategory, page: currentPage });
+      const params = { 
+        query: currentQuery, 
+        filter: currentFilter, 
+        province: currentProvince, 
+        category: currentCategory,
+        salaryMin: currentSalaryMin,
+        salaryMax: currentSalaryMax,
+        page: currentPage 
+      };
+      const { jobs, total } = await fetchJobs(params);
       totalJobs = total;
 
       if (reset) container.innerHTML = '';
@@ -297,6 +366,7 @@
     updateSavedBadge();
     await renderProvinceFilters();
     await renderCategoryFilters();
+    await renderSalarySlider();
     await loadJobs(true);
   }
 

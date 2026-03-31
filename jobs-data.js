@@ -80,7 +80,16 @@ export async function getCategories() {
   return Array.from(categories).sort();
 }
 
-export async function fetchJobs({ query = '', filter = 'all', province = 'all', category = 'all', page = 1 } = {}) {
+export async function getSalaryRange() {
+  const all = await loadAll();
+  const salaries = all.map(j => j.salary_max).filter(Boolean);
+  return {
+    min: Math.min(...salaries),
+    max: Math.max(...salaries),
+  };
+}
+
+export async function fetchJobs({ query = '', filter = 'all', province = 'all', category = 'all', salaryMin = 0, salaryMax = 0, page = 1 } = {}) {
   const all = await loadAll();
 
   let filtered = all;
@@ -98,6 +107,25 @@ export async function fetchJobs({ query = '', filter = 'all', province = 'all', 
   // Filter by category
   if (category !== 'all') {
     filtered = filtered.filter(j => j.category?.label === category);
+  }
+
+  // Filter by salary
+  if (salaryMin > 0 || salaryMax > 0) {
+    filtered = filtered.filter(j => {
+      if (!j.salary_max) return false;
+      const jobMax = j.salary_max;
+      const jobMin = j.salary_min ?? jobMax;
+      if (salaryMin > 0 && salaryMax > 0) {
+        return jobMin >= salaryMin && jobMax <= salaryMax;
+      }
+      if (salaryMin > 0) {
+        return jobMin >= salaryMin;
+      }
+      if (salaryMax > 0) {
+        return jobMax <= salaryMax;
+      }
+      return true;
+    });
   }
 
   // Filter by search query (title, company, location, category)
