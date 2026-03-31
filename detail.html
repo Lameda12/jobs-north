@@ -5,6 +5,7 @@
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
   <title>JOBS_NORTH | Job Detail</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
   <script>
@@ -49,7 +50,7 @@
     .prose strong, .prose b { color: #e5e2e1; }
     @media print {
       body { background-color: #fff; color: #000; }
-      header, nav, #history-rail, .md\:sticky.top-24 { display: none; }
+      header, nav, #history-rail, .md\:sticky.top-24, #ai-summary-container { display: none; }
       main { padding-top: 0; }
       .prose p, .prose li, .prose strong, .prose b { color: #000; }
     }
@@ -66,7 +67,7 @@
     <h1 class="text-2xl font-black tracking-tighter text-[#E1E3E5] font-headline uppercase">JOBS_NORTH</h1>
   </div>
   <nav class="hidden md:flex items-center gap-8">
-    <a class="text-[#C5C7C9] hover:bg-[#C5C7C9]/10 transition-colors font-headline tracking-tighter font-bold uppercase py-1" href="index.html">Home</a>
+    <a class="text-[#C5C7C9] hover:bg-[#C5C7C9]/10 transition-colors font-headline tracking-tighter font-bold uppercase py-1" href="index.html">Agent</a>
     <a class="text-[#C5C7C9] hover:bg-[#C5C7C9]/10 transition-colors font-headline tracking-tighter font-bold uppercase py-1 relative" href="saved.html">Saved
       <span id="saved-badge-desktop" class="hidden ml-1 inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-secondary text-on-secondary rounded-full"></span>
     </a>
@@ -121,6 +122,31 @@
 
 <script type="module">
   import { sanitizeHtml, formatSalary, formatBadge, generatePTID, escapeHtml, saveJob, removeSaved, isSaved, getSavedCount, fetchJobById, getHistory, addToHistory } from './jobs-data.js';
+  const { pipeline } = transformers;
+
+  async function generateSummary(descriptionText) {
+    const summaryContainer = document.getElementById('ai-summary-container');
+    try {
+      const summarizer = await pipeline('summarization', 'Xenova/distilbart-cnn-6-6');
+      const cleanedText = descriptionText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const output = await summarizer(cleanedText, { max_length: 100, min_length: 30 });
+      
+      // Format as bullet points
+      const summary = output[0].summary_text;
+      const sentences = summary.split('. ').filter(s => s.length > 0).map(s => `<li>${s.trim()}.</li>`);
+      
+      summaryContainer.innerHTML = `
+        <p class="font-label text-xs uppercase tracking-widest text-secondary mb-3">Agent Summary_</p>
+        <ul class="prose prose-sm list-disc pl-5 space-y-1">${sentences.join('')}</ul>
+      `;
+    } catch (error) {
+      console.error('AI Summary Error:', error);
+      summaryContainer.innerHTML = `
+        <p class="font-label text-xs uppercase tracking-widest text-error mb-2">Agent Summary Failed_</p>
+        <p class="font-body text-sm text-outline">Could not generate summary for this listing.</p>
+      `;
+    }
+  }
 
   function updateSavedBadge() {
     const count = getSavedCount();
@@ -151,6 +177,16 @@
             <span class="w-1 h-1 bg-outline-variant rounded-full"></span>
             <span>${escapeHtml(job.location?.display_name ?? 'Canada')}</span>
           </div>
+
+          <div id="ai-summary-container" class="mb-10 p-6 bg-surface-container border border-outline-variant/20">
+            <p class="font-label text-xs uppercase tracking-widest text-secondary mb-3">Agent Summary_</p>
+            <div class="space-y-2">
+              <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-5/6"></div>
+              <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-4/6"></div>
+              <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-5/6"></div>
+            </div>
+          </div>
+
           <div class="prose max-w-none">${description}</div>
         </div>
         <div class="md:w-64 md:sticky md:top-24 h-fit flex flex-col gap-4">
@@ -229,7 +265,9 @@
     }
 
     if (!job && id) {
-      job = await fetchJobById(id);
+      // This needs to load from the source of truth, not just saved jobs
+      const allJobs = await (await fetch('./jobs.json')).json();
+      job = allJobs.find(j => j.id === id);
     }
 
     if (!job) {
@@ -240,6 +278,7 @@
       
       addToHistory(job);
       renderHistory(job.id);
+      generateSummary(job.description);
 
       document.getElementById('save-btn').addEventListener('click', function() {
         if (isSaved(job.id)) {
