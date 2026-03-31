@@ -131,7 +131,6 @@
       const cleanedText = descriptionText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       const output = await summarizer(cleanedText, { max_length: 100, min_length: 30 });
       
-      // Format as bullet points
       const summary = output[0].summary_text;
       const sentences = summary.split('. ').filter(s => s.length > 0).map(s => `<li>${s.trim()}.</li>`);
       
@@ -145,6 +144,45 @@
         <p class="font-label text-xs uppercase tracking-widest text-error mb-2">Agent Summary Failed_</p>
         <p class="font-body text-sm text-outline">Could not generate summary for this listing.</p>
       `;
+    }
+  }
+
+  async function generateDossier(descriptionText) {
+    const skillsContainer = document.getElementById('skill-analysis-container');
+    const keywordsContainer = document.getElementById('keyword-analysis-container');
+    const cleanedText = descriptionText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    try {
+      // Skills Analysis
+      const classifier = await pipeline('zero-shot-classification', 'Xenova/bart-large-mnli');
+      const skill_labels = ['communication', 'teamwork', 'problem solving', 'leadership', 'customer service', 'project management', 'software development', 'marketing', 'sales', 'data analysis', 'design', 'writing'];
+      const { scores, labels } = await classifier(cleanedText, skill_labels);
+      
+      const topSkills = labels.slice(0, 5).map(label => `<li>${label.charAt(0).toUpperCase() + label.slice(1)}</li>`).join('');
+      skillsContainer.innerHTML = `
+        <p class="font-label text-xs uppercase tracking-widest text-secondary mb-3">Top Skills_</p>
+        <ul class="prose prose-sm list-disc pl-5 space-y-1">${topSkills}</ul>
+      `;
+
+      // Keyword Extraction
+      const stopWords = new Set(['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now']);
+      const words = cleanedText.toLowerCase().match(/\b(\w+)\b/g) ?? [];
+      const freq = {};
+      for (const word of words) {
+        if (!stopWords.has(word) && isNaN(word)) {
+          freq[word] = (freq[word] || 0) + 1;
+        }
+      }
+      const topKeywords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([word]) => `<span class="bg-surface-container-high px-2 py-1 text-xs font-label rounded-sm">${word}</span>`).join('');
+      keywordsContainer.innerHTML = `
+        <p class="font-label text-xs uppercase tracking-widest text-secondary mb-3">Resume Keywords_</p>
+        <div class="flex flex-wrap gap-2">${topKeywords}</div>
+      `;
+
+    } catch (error) {
+      console.error('Dossier Generation Error:', error);
+      skillsContainer.style.display = 'none';
+      keywordsContainer.style.display = 'none';
     }
   }
 
@@ -184,6 +222,25 @@
               <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-5/6"></div>
               <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-4/6"></div>
               <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-5/6"></div>
+            </div>
+          </div>
+
+          <div id="skill-analysis-container" class="mb-10 p-6 bg-surface-container border border-outline-variant/20">
+            <p class="font-label text-xs uppercase tracking-widest text-secondary mb-3">Top Skills_</p>
+            <div class="space-y-2">
+              <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-3/4"></div>
+              <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-1/2"></div>
+              <div class="h-2.5 bg-surface-container-high rounded-sm animate-pulse w-2/3"></div>
+            </div>
+          </div>
+
+          <div id="keyword-analysis-container" class="mb-10 p-6 bg-surface-container border border-outline-variant/20">
+            <p class="font-label text-xs uppercase tracking-widest text-secondary mb-3">Resume Keywords_</p>
+            <div class="flex flex-wrap gap-2">
+              <div class="h-6 bg-surface-container-high rounded-sm animate-pulse w-20"></div>
+              <div class="h-6 bg-surface-container-high rounded-sm animate-pulse w-28"></div>
+              <div class="h-6 bg-surface-container-high rounded-sm animate-pulse w-24"></div>
+              <div class="h-6 bg-surface-container-high rounded-sm animate-pulse w-20"></div>
             </div>
           </div>
 
@@ -278,7 +335,12 @@
       
       addToHistory(job);
       renderHistory(job.id);
-      generateSummary(job.description);
+      
+      // Run dossier generation in parallel
+      Promise.all([
+        generateSummary(job.description),
+        generateDossier(job.description)
+      ]);
 
       document.getElementById('save-btn').addEventListener('click', function() {
         if (isSaved(job.id)) {
