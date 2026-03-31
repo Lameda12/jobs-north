@@ -1,31 +1,109 @@
 // ─────────────────────────────────────────────
-// JOBS_NORTH — Local data module
-// Job data lives in jobs.json. No API key needed.
+// JOBS_NORTH — Agentic Data Module (Project Chimera)
 // ─────────────────────────────────────────────
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 
-export const CONFIG = {
-  RESULTS_PER_PAGE: 10,
-};
+// --- AGENT CONFIG & CACHE ---
+let _agent_pipe = null;
+let _embeddings_cache = null;
 
-const PROVINCE_MAP = {
-  'Ontario': 'ON', 'British Columbia': 'BC', 'Quebec': 'QC',
-  'Alberta': 'AB', 'Nova Scotia': 'NS', 'Manitoba': 'MB',
-  'Saskatchewan': 'SK', 'New Brunswick': 'NB',
-  'Newfoundland and Labrador': 'NL', 'Prince Edward Island': 'PE',
-  'Northwest Territories': 'NT', 'Yukon': 'YT', 'Nunavut': 'NU',
-};
+// --- CORE AGENT FUNCTIONS ---
 
-export function extractProvince(area = []) {
-  for (const a of area) {
-    if (PROVINCE_MAP[a]) return PROVINCE_MAP[a];
+/**
+ * Calculates the cosine similarity between two vectors.
+ * @param {number[]} vecA 
+ * @param {number[]} vecB 
+ * @returns {number}
+ */
+function cosineSimilarity(vecA, vecB) {
+  let dotProduct = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    magA += vecA[i] * vecA[i];
+    magB += vecB[i] * vecB[i];
   }
-  return 'CA';
+  magA = Math.sqrt(magA);
+  magB = Math.sqrt(magB);
+  if (magA === 0 || magB === 0) return 0;
+  return dotProduct / (magA * magB);
 }
 
+/**
+ * Initializes the AI agent by loading the model and generating embeddings for all jobs.
+ * This is a heavy, one-time operation.
+ * @param {function(string): void} progressCallback - A function to call with progress updates.
+ */
+export async function initializeAgent(progressCallback) {
+  if (_agent_pipe && _embeddings_cache) return;
+
+  progressCallback('Loading AI model...');
+  _agent_pipe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+  
+  progressCallback('Loading job listings...');
+  const jobs = await loadAll();
+
+  _embeddings_cache = new Map();
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    progressCallback(`Analyzing job ${i + 1} of ${jobs.length}...`);
+    const description = (job.title + ' ' + job.description).replace(/<[^>]*>/g, ' ');
+    const embedding = await _agent_pipe(description, { pooling: 'mean', normalize: true });
+    _embeddings_cache.set(job.id, { job, embedding: embedding.data });
+  }
+
+  progressCallback('Agent is ready.');
+}
+
+/**
+ * Finds the most similar jobs to a given query using semantic search.
+ * @param {string} query - The user's natural language query.
+ * @param {number} top_k - The number of similar jobs to return.
+ * @returns {Promise<object[]>} A promise that resolves to an array of job objects.
+ */
+export async function findSimilarJobs(query, top_k = 5) {
+  if (!_agent_pipe || !_embeddings_cache) throw new Error("Agent not initialized.");
+
+  const queryEmbedding = await _agent_pipe(query, { pooling: 'mean', normalize: true });
+
+  const similarities = [];
+  for (const [id, { job, embedding }] of _embeddings_cache.entries()) {
+    const similarity = cosineSimilarity(queryEmbedding.data, embedding);
+    similarities.push({ job, similarity });
+  }
+
+  similarities.sort((a, b) => b.similarity - a.similarity);
+  return similarities.slice(0, top_k).map(s => s.job);
+}
+
+
+// --- CACHE & DATA LOADING ---
+let _cache = null;
+
+async function loadAll() {
+  if (_cache) return _cache;
+  const res = await fetch('./jobs.json');
+  if (!res.ok) throw new Error('Failed to load jobs.json');
+  _cache = await res.json();
+  return _cache;
+}
+
+// --- UTILITY & FORMATTING FUNCTIONS (Still useful for rendering) ---
+
 export function generatePTID(job) {
-  const province = extractProvince(job.location?.area);
-  const id = String(job.id).replace(/\D/g, '').slice(-5).padStart(5, '0');
-  return `PT_ID: ${id}-${province}`;
+  const PROVINCE_MAP = {
+    'Ontario': 'ON', 'British Columbia': 'BC', 'Quebec': 'QC',
+    'Alberta': 'AB', 'Nova Scotia': 'NS', 'Manitoba': 'MB',
+    'Saskatchewan': 'SK', 'New Brunswick': 'NB',
+    'Newfoundland and Labrador': 'NL', 'Prince Edward Island': 'PE',
+    'Northwest Territories': 'NT', 'Yukon': 'YT', 'Nunavut': 'NU',
+  };
+  const area = job.location?.area ?? [];
+  for (const a of area) {
+    if (PROVINCE_MAP[a]) return `PT_ID: ${String(job.id).slice(-5)}-${PROVINCE_MAP[a]}`;
+  }
+  return `PT_ID: ${String(job.id).slice(-5)}-CA`;
 }
 
 export function formatSalary(job) {
@@ -37,13 +115,6 @@ export function formatSalary(job) {
   return 'SALARY N/A';
 }
 
-export function formatBadge(job, filter) {
-  const time = job.contract_time === 'part_time' ? 'Part-Time' : 'Casual';
-  const workType = job.work_type ?? 'in-person';
-  const mode = workType === 'remote' ? 'Remote' : workType === 'hybrid' ? 'Hybrid' : 'In-Person';
-  return `${time} / ${mode}`;
-}
-
 export function escapeHtml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
@@ -52,105 +123,39 @@ export function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// Cache loaded jobs in memory
-let _cache = null;
-
-export async function loadAll() {
-  if (_cache) return _cache;
-  const res = await fetch('./jobs.json');
-  if (!res.ok) throw new Error('Failed to load jobs.json');
-  _cache = await res.json();
-  return _cache;
+export function sanitizeHtml(dirty) {
+  const allowed = ['p', 'ul', 'ol', 'li', 'strong', 'em', 'b', 'i', 'br', 'span'];
+  const tmp = document.createElement('div');
+  tmp.innerHTML = dirty;
+  tmp.querySelectorAll('*').forEach(el => {
+    if (!allowed.includes(el.tagName.toLowerCase())) {
+      el.replaceWith(...el.childNodes);
+    } else {
+      [...el.attributes].forEach(attr => el.removeAttribute(attr.name));
+    }
+  });
+  return tmp.innerHTML;
 }
 
-export async function fetchJobById(id) {
-  const all = await loadAll();
-  return all.find(j => j.id === id);
+export function formatTimeAgo(timestamp) {
+  const days = Math.floor((Date.now() - timestamp) / 86400000);
+  if (days === 0) return 'TODAY';
+  if (days === 1) return '1 DAY AGO';
+  return `${days} DAYS AGO`;
 }
 
-export async function getProvinces() {
-  const all = await loadAll();
-  const provinces = new Set(all.map(j => extractProvince(j.location?.area)));
-  return Array.from(provinces).sort();
+export function formatBadge(job) {
+  const time = job.contract_time === 'part_time' ? 'Part-Time' : 'Casual';
+  const workType = job.work_type ?? 'in-person';
+  const mode = workType === 'remote' ? 'Remote' : workType === 'hybrid' ? 'Hybrid' : 'In-Person';
+  return `${time} / ${mode}`;
 }
 
-export async function getCategories() {
-  const all = await loadAll();
-  const categories = new Set(all.map(j => j.category?.label).filter(Boolean));
-  return Array.from(categories).sort();
-}
-
-export async function getSalaryRange() {
-  const all = await loadAll();
-  const salaries = all.map(j => j.salary_max).filter(Boolean);
-  return {
-    min: Math.min(...salaries),
-    max: Math.max(...salaries),
-  };
-}
-
-export async function fetchJobs({ query = '', filter = 'all', province = 'all', category = 'all', salaryMin = 0, salaryMax = 0, page = 1 } = {}) {
-  const all = await loadAll();
-
-  let filtered = all;
-
-  // Filter by work type
-  if (filter !== 'all') {
-    filtered = filtered.filter(j => (j.work_type ?? 'in-person') === filter);
-  }
-
-  // Filter by province
-  if (province !== 'all') {
-    filtered = filtered.filter(j => extractProvince(j.location?.area) === province);
-  }
-
-  // Filter by category
-  if (category !== 'all') {
-    filtered = filtered.filter(j => j.category?.label === category);
-  }
-
-  // Filter by salary
-  if (salaryMin > 0 || salaryMax > 0) {
-    filtered = filtered.filter(j => {
-      if (!j.salary_max) return false;
-      const jobMax = j.salary_max;
-      const jobMin = j.salary_min ?? jobMax;
-      if (salaryMin > 0 && salaryMax > 0) {
-        return jobMin >= salaryMin && jobMax <= salaryMax;
-      }
-      if (salaryMin > 0) {
-        return jobMin >= salaryMin;
-      }
-      if (salaryMax > 0) {
-        return jobMax <= salaryMax;
-      }
-      return true;
-    });
-  }
-
-  // Filter by search query (title, company, location, category)
-  if (query) {
-    const q = query.toLowerCase();
-    filtered = filtered.filter(j =>
-      j.title?.toLowerCase().includes(q) ||
-      j.company?.display_name?.toLowerCase().includes(q) ||
-      j.location?.display_name?.toLowerCase().includes(q) ||
-      j.category?.label?.toLowerCase().includes(q)
-    );
-  }
-
-  const total = filtered.length;
-  const start = (page - 1) * CONFIG.RESULTS_PER_PAGE;
-  const jobs = filtered.slice(start, start + CONFIG.RESULTS_PER_PAGE);
-
-  return { jobs, total };
-}
-
-export function renderCard(job, filter = 'all') {
+export function renderCard(job) {
   if (!job) return '';
   const ptid = generatePTID(job);
   const salary = formatSalary(job);
-  const badge = formatBadge(job, filter);
+  const badge = formatBadge(job);
   const category = escapeHtml(job.category?.label ?? 'General');
 
   return `
@@ -193,26 +198,7 @@ export function renderSkeleton(count = 3) {
   `).join('');
 }
 
-export function sanitizeHtml(dirty) {
-  const allowed = ['p', 'ul', 'ol', 'li', 'strong', 'em', 'b', 'i', 'br', 'span'];
-  const tmp = document.createElement('div');
-  tmp.innerHTML = dirty;
-  tmp.querySelectorAll('*').forEach(el => {
-    if (!allowed.includes(el.tagName.toLowerCase())) {
-      el.replaceWith(...el.childNodes);
-    } else {
-      [...el.attributes].forEach(attr => el.removeAttribute(attr.name));
-    }
-  });
-  return tmp.innerHTML;
-}
-
-export function formatTimeAgo(timestamp) {
-  const days = Math.floor((Date.now() - timestamp) / 86400000);
-  if (days === 0) return 'TODAY';
-  if (days === 1) return '1 DAY AGO';
-  return `${days} DAYS AGO`;
-}
+// --- LOCAL STORAGE HELPERS ---
 
 const STORAGE_KEY_SAVED = 'jobs_north_saved';
 const STORAGE_KEY_HISTORY = 'jobs_north_history';
@@ -266,4 +252,9 @@ export function isSaved(id) {
 
 export function getSavedCount() {
   return getSaved().length;
+}
+
+export function fetchJobById(id) {
+  const saved = getSaved();
+  return saved.find(j => j.id === id);
 }
