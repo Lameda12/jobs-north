@@ -66,7 +66,7 @@
       Describe your ideal role in plain English. Your agent will find the closest matches.
     </p>
     <div class="flex flex-col gap-4">
-      <textarea id="agent-query" class="w-full bg-surface-container-lowest border border-outline-variant/30 focus:ring-secondary focus:border-secondary font-body text-base p-4" rows="3" placeholder="e.g., A creative role in Toronto that values writing and design."></textarea>
+      <textarea id="agent-query" class="w-full bg-surface-container-lowest border border-outline-variant/30 focus:ring-secondary focus:border-secondary font-body text-base p-4" rows="3" placeholder="e.g., A creative role in Toronto that values writing and design. Remote preferred."></textarea>
       <button id="task-agent-btn" class="w-full md:w-auto self-start font-label text-sm uppercase tracking-widest py-3 px-8 bg-secondary text-on-secondary hover:bg-secondary/80 transition-colors disabled:bg-outline-variant disabled:cursor-not-allowed">
         Task Agent
       </button>
@@ -141,17 +141,17 @@
 
   async function init() {
     updateSavedBadge();
-    setAgentStatus('Agent is offline.', true);
-    container.innerHTML = `<p class="font-label text-outline">Agent is initializing. This may take a moment...</p>`;
+    setAgentStatus('Connecting...', true);
+    container.innerHTML = `<p class="font-label text-outline">Agent is connecting...</p>`;
     
     try {
       await initializeAgent(status => setAgentStatus(status, true));
-      setAgentStatus('Agent is ready. Task me.', false);
+      setAgentStatus('Agent ready. Describe your ideal role.', false);
       container.innerHTML = `<p class="font-label text-outline">Awaiting your command.</p>`;
     } catch (error) {
       console.error(error);
-      setAgentStatus('Agent failed to initialize.', true);
-      container.innerHTML = `<p class="font-label text-error">Critical Error: AI Agent could not start.</p>`;
+      setAgentStatus('API offline — is the server running?', false);
+      container.innerHTML = `<p class="font-label text-error">Could not reach the JOBS_NORTH API. Run <code class="font-mono text-xs bg-surface-container px-1">npm run start:dev</code> in /platform.</p>`;
     }
   }
 

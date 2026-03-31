@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 import { toSql, fromSql } from 'pgvector';
 
 @Entity('jobs')
@@ -27,27 +27,37 @@ export class Job {
   @Column({ type: 'integer', nullable: true })
   salary_max: number;
 
-  @Column()
+  @Column({ default: 'part_time' })
   contract_time: string;
 
-  @Column()
+  @Column({ default: 'in-person' })
   work_type: string;
 
   @Column('jsonb')
   category: object;
 
-  @Column()
+  @Column({ nullable: true })
   redirect_url: string;
 
-  @Index({ fulltext: true })
+  /** Source of the listing: 'seed' | 'jobbank' | 'indeed' etc. */
+  @Column({ default: 'seed' })
+  source: string;
+
+  @CreateDateColumn()
+  scraped_at: Date;
+
+  /**
+   * 384-dim embedding from all-MiniLM-L6-v2.
+   * HNSW index is created via enable-vector.ts after seeding.
+   */
   @Column({
     type: 'vector',
-    length: 384, // Length of the all-MiniLM-L6-v2 embedding
+    length: 384,
     nullable: true,
     transformer: {
       to: (value: number[]) => (value ? toSql(value) : null),
       from: (value: string) => (value ? fromSql(value) : null),
     },
   })
-  embedding: number[];
+  embedding: number[] | null;
 }

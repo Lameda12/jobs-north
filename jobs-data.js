@@ -1,95 +1,91 @@
 // ─────────────────────────────────────────────
-// JOBS_NORTH — Agentic Data Module (Project Chimera)
+// JOBS_NORTH — API Client Module
+// All AI inference is now server-side. This module is a thin HTTP client.
 // ─────────────────────────────────────────────
-import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 
-// --- AGENT CONFIG & CACHE ---
-let _agent_pipe = null;
-let _embeddings_cache = null;
+const API_BASE = 'http://localhost:3001/api';
 
-// --- CORE AGENT FUNCTIONS ---
+// ─── AGENT FUNCTIONS (now backed by the NestJS API) ──────────────────────────
 
 /**
- * Calculates the cosine similarity between two vectors.
- * @param {number[]} vecA 
- * @param {number[]} vecB 
- * @returns {number}
- */
-function cosineSimilarity(vecA, vecB) {
-  let dotProduct = 0;
-  let magA = 0;
-  let magB = 0;
-  for (let i = 0; i < vecA.length; i++) {
-    dotProduct += vecA[i] * vecB[i];
-    magA += vecA[i] * vecA[i];
-    magB += vecB[i] * vecB[i];
-  }
-  magA = Math.sqrt(magA);
-  magB = Math.sqrt(magB);
-  if (magA === 0 || magB === 0) return 0;
-  return dotProduct / (magA * magB);
-}
-
-/**
- * Initializes the AI agent by loading the model and generating embeddings for all jobs.
- * This is a heavy, one-time operation.
- * @param {function(string): void} progressCallback - A function to call with progress updates.
+ * "Initializes" the agent — now just checks API health.
+ * Instant. No 60-second model load.
  */
 export async function initializeAgent(progressCallback) {
-  if (_agent_pipe && _embeddings_cache) return;
-
-  progressCallback('Loading AI model...');
-  _agent_pipe = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-  
-  progressCallback('Loading job listings...');
-  const jobs = await loadAll();
-
-  _embeddings_cache = new Map();
-  for (let i = 0; i < jobs.length; i++) {
-    const job = jobs[i];
-    progressCallback(`Analyzing job ${i + 1} of ${jobs.length}...`);
-    const description = (job.title + ' ' + job.description).replace(/<[^>]*>/g, ' ');
-    const embedding = await _agent_pipe(description, { pooling: 'mean', normalize: true });
-    _embeddings_cache.set(job.id, { job, embedding: embedding.data });
-  }
-
-  progressCallback('Agent is ready.');
+  progressCallback('Connecting to agent...');
+  const res = await fetch(`${API_BASE}/jobs?limit=1`);
+  if (!res.ok) throw new Error('API unreachable');
+  progressCallback('Agent connected.');
 }
 
 /**
- * Finds the most similar jobs to a given query using semantic search.
- * @param {string} query - The user's natural language query.
- * @param {number} top_k - The number of similar jobs to return.
- * @returns {Promise<object[]>} A promise that resolves to an array of job objects.
+ * Semantic search via the backend.
+ * @param {string} query - Natural language query.
+ * @param {number} topK - Number of results.
+ * @returns {Promise<object[]>} Matched jobs.
  */
-export async function findSimilarJobs(query, top_k = 5) {
-  if (!_agent_pipe || !_embeddings_cache) throw new Error("Agent not initialized.");
-
-  const queryEmbedding = await _agent_pipe(query, { pooling: 'mean', normalize: true });
-
-  const similarities = [];
-  for (const [id, { job, embedding }] of _embeddings_cache.entries()) {
-    const similarity = cosineSimilarity(queryEmbedding.data, embedding);
-    similarities.push({ job, similarity });
+export async function findSimilarJobs(query, topK = 5) {
+  const res = await fetch(`${API_BASE}/jobs/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, topK }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message ?? `Search failed: ${res.status}`);
   }
-
-  similarities.sort((a, b) => b.similarity - a.similarity);
-  return similarities.slice(0, top_k).map(s => s.job);
+  const jobs = await res.json();
+  // Normalise shape to match the original jobs.json schema expected by renderCard()
+  return jobs.map(normaliseJob);
 }
 
-
-// --- CACHE & DATA LOADING ---
-let _cache = null;
-
-async function loadAll() {
-  if (_cache) return _cache;
-  const res = await fetch('./jobs.json');
-  if (!res.ok) throw new Error('Failed to load jobs.json');
-  _cache = await res.json();
-  return _cache;
+/**
+ * Fetch a single job by its original_id — fixes the deep-link / sessionStorage bug.
+ */
+export async function fetchJobById(id) {
+  const res = await fetch(`${API_BASE}/jobs/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error(`Job ${id} not found`);
+  const job = await res.json();
+  return normaliseJob(job);
 }
 
-// --- UTILITY & FORMATTING FUNCTIONS (Still useful for rendering) ---
+/**
+ * Paginated job listing with optional filters.
+ */
+export async function fetchJobs({ query = '', filter = 'all', page = 1, limit = 10, province } = {}) {
+  const params = new URLSearchParams({ page, limit });
+  if (filter && filter !== 'all') params.set('workType', filter);
+  if (query) params.set('q', query);
+  if (province) params.set('province', province);
+
+  const res = await fetch(`${API_BASE}/jobs?${params}`);
+  if (!res.ok) throw new Error('Failed to load jobs');
+  const data = await res.json();
+  return {
+    jobs: data.jobs.map(normaliseJob),
+    total: data.total,
+  };
+}
+
+// ─── Normalise DB row → jobs.json shape ──────────────────────────────────────
+
+function normaliseJob(job) {
+  return {
+    id: job.original_id ?? String(job.id),
+    title: job.title,
+    company: job.company ?? { display_name: 'N/A' },
+    location: job.location ?? { display_name: 'Canada', area: [] },
+    description: job.description ?? '',
+    salary_min: job.salary_min,
+    salary_max: job.salary_max,
+    contract_time: job.contract_time ?? 'part_time',
+    work_type: job.work_type ?? 'in-person',
+    category: job.category ?? { label: 'General' },
+    redirect_url: job.redirect_url ?? '#',
+  };
+}
+
+// ─── UTILITY & FORMATTING (unchanged) ────────────────────────────────────────
 
 export function generatePTID(job) {
   const PROVINCE_MAP = {
@@ -198,7 +194,7 @@ export function renderSkeleton(count = 3) {
   `).join('');
 }
 
-// --- LOCAL STORAGE HELPERS ---
+// ─── LOCAL STORAGE HELPERS (unchanged) ───────────────────────────────────────
 
 const STORAGE_KEY_SAVED = 'jobs_north_saved';
 const STORAGE_KEY_HISTORY = 'jobs_north_history';
@@ -213,9 +209,7 @@ export function addToHistory(job) {
   let history = getHistory();
   history = history.filter(j => j.id !== job.id);
   history.unshift(job);
-  if (history.length > 5) {
-    history = history.slice(0, 5);
-  }
+  if (history.length > 5) history = history.slice(0, 5);
   localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
 }
 
@@ -252,9 +246,4 @@ export function isSaved(id) {
 
 export function getSavedCount() {
   return getSaved().length;
-}
-
-export function fetchJobById(id) {
-  const saved = getSaved();
-  return saved.find(j => j.id === id);
 }
